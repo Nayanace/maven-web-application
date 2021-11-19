@@ -1,0 +1,89 @@
+
+pipeine {
+
+agent any
+
+tools{
+maven "maven3.8.2"
+}
+
+options{
+buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5'))
+
+timestamps()
+
+}
+
+triggers{
+//pool scm
+pollSCM('    *')
+//buildperiodically
+cron('    *')
+//GitHub Webhook
+githubPush()
+}
+
+
+
+
+
+stage {
+  
+	stage ('CheckOutCode'){
+	steps{
+	git branch: 'master', credentialsId: 'c5c1b999-d4dc-41f1-b5d1-c44b6accd42b', url: 'https://github.com/srss-devops-project/maven-web-application.git'
+	}
+	}
+	
+	stage ('Build'){
+	steps{	 
+	sh "mvn clean package"
+	}
+	}
+
+	stage ('ExecuteSonarQubeReport'){
+	steps{
+	sh "mvn clean sonar:sonar"
+	}
+	}
+	
+	stage ('UploadArtifactsIntoNexus'){
+	steps{
+	sh "mvn clean deploy"
+	}
+	}
+
+	stage ('DeployAppIntoTomcatServer'){
+	steps{
+	sshagent(['5808d159-dfe3-435a-bd63-9db7ba40e096']) {
+	sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@13.233.128.232:/opt/apache-tomcat-9.0.53/webapps"
+	}
+	}
+	}
+
+}
+
+post{
+
+success{
+mail bcc: '', body: '''Build Success..
+
+Regards
+SR Software Solutions
+8978502719 ''', cc: '', from: '', replyTo: '', subject: 'Build Success !!', to: 'gsrinivasulu053@gmail.com'
+
+}
+
+failure {
+mail bcc: '', body: '''Build Failed..
+
+Regards
+SR Software Solutions
+8978502719 ''', cc: '', from: '', replyTo: '', subject: 'Build Failed !!', to: 'gsrinivasulu053@gmail.com'
+
+}
+
+}
+
+
+}
